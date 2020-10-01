@@ -39,7 +39,7 @@ class TopTrader(QMainWindow, ui):
         self.logger = TTlog().logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
-        self.slack = Slack(config_manager.get_slack_token())
+        #self.slack = Slack(config_manager.get_slack_token())
         self.kw = Kiwoom()
         self.init_trading()
         # self.just_sell_all_stocks()
@@ -89,7 +89,10 @@ class TopTrader(QMainWindow, ui):
 
     def set_account(self):
         self.acc_no = self.kw.get_login_info("ACCNO")
-        self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        #self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        acc_nos = self.acc_no.split(";")  # 계좌 1개를 가정함.
+        self.acc_no = acc_nos[0]
+        self.logger.info("acc_no : %s"%(self.acc_no))
         self.stock_account = self.get_account_info(self.acc_no)
 
         # kiwoom default account setting
@@ -126,6 +129,33 @@ class TopTrader(QMainWindow, ui):
                 'account_no': self.acc_no
             })
             time.sleep(0.5)
+
+    def sell_stocks_condi(self, sell_code):
+        curr_time = datetime.today()
+        self.stock_account = self.get_account_info(self.acc_no)
+        for data in self.stock_account["종목정보"]:
+            code, stock_name, quantity = data["종목코드"][1:], data["종목명"], int(data["보유수량"])
+            if code not in sell_code:
+                continue
+            self.logger.info("종목코드 {} 수량 {} 매도처리합니다.".format(code, quantity))
+            self.kw.시장가_신규매도(code, quantity)
+            손익율 = data["손익율"]
+            self.tt_db.trading_history.insert({
+                'date': curr_time,
+                'code': code,
+                'stock_name': self.stock_dict[code]["stock_name"],
+                'market': self.stock_dict[code]["market"],
+                'event': '',
+                'condi_name': '',
+                'trade': 'sell',
+                'profit': 손익율,
+                'quantity': quantity,
+                'hoga_gubun': '시장가',
+                'account_no': self.acc_no
+            })
+            self.my_stock_pocket.remove(event_data["code"])
+            time.sleep(0.5)
+            break
 
     def check_stocks_to_sell(self):
         self.logger.info("[Timer Interrupt] 30 second")
@@ -191,6 +221,7 @@ class TopTrader(QMainWindow, ui):
         :param dict event_data:
         :return:
         """
+        self.logger.info("[search_condi]")
         curr_time = datetime.today()
         if curr_time < self.s_time:
             self.logger.info("시작시간이 되지 않아 매수하지 않습니다.")
@@ -206,40 +237,44 @@ class TopTrader(QMainWindow, ui):
             'condi_name': event_data["condi_name"]
         })
 
-        if event_data["event_type"] == "I":
-            예수금 = self.stock_account["계좌정보"]["예수금"]
-            D2_예수금 = self.stock_account["계좌정보"]["예수금"]
-            총예수금 = 예수금 + D2_예수금
-            if 총예수금 < 100000:  # 잔고가 10만원 미만이면 매수 안함
-                self.logger.info("총예수금({}) 부족으로 추가 매수하지 않습니다.".format(총예수금))
-                return
+        if event_data["condi_name"] == "단순돌파":
+            if event_data["event_type"] == "I":
+                예수금 = self.stock_account["계좌정보"]["예수금"]
+                D2_예수금 = self.stock_account["계좌정보"]["예수금"]
+                총예수금 = 예수금 + D2_예수금
+                if 총예수금 < 100000:  # 잔고가 10만원 미만이면 매수 안함
+                    self.logger.info("총예수금({}) 부족으로 추가 매수하지 않습니다.".format(총예수금))
+                    return
 
-            if event_data["code"] in self.my_stock_pocket:
-                self.logger.info("해당 종목({}) 이미 보유중이라 추가매수하지 않습니다.".format(
-                    self.stock_dict[event_data["code"]]["stock_name"]))
-                return
-            # curr_price = self.kw.get_curr_price(event_data["code"])
-            # quantity = int(100000/curr_price)
-            quantity = 20
-            # self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
-            stock_name = self.stock_dict[event_data["code"]]["stock_name"]
-            market = self.stock_dict[event_data["code"]]["market"]
-            self.tt_db.trading_history.insert({
-                'date': curr_time,
-                'code': event_data["code"],
-                'stock_name': stock_name,
-                'market': market,
-                'event': event_data["event_type"],
-                'condi_name': event_data["condi_name"],
-                'trade': 'buy',
-                'quantity': quantity,
-                'hoga_gubun': '시장가',
-                'account_no': self.acc_no
-            })
-            self.logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
-            self.my_stock_pocket.add(event_data["code"])
-            self.kw.시장가_신규매수(event_data["code"], quantity)
-            # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
+                if event_data["code"] in self.my_stock_pocket:
+                    self.logger.info("해당 종목({}) 이미 보유중이라 추가매수하지 않습니다.".format(
+                        self.stock_dict[event_data["code"]]["stock_name"]))
+                    return
+                curr_price = self.kw.get_curr_price(event_data["code"])
+                quantity = int(1000000/curr_price)
+                # quantity = 20
+                # self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
+                stock_name = self.stock_dict[event_data["code"]]["stock_name"]
+                market = self.stock_dict[event_data["code"]]["market"]
+                self.tt_db.trading_history.insert({
+                    'date': curr_time,
+                    'code': event_data["code"],
+                    'stock_name': stock_name,
+                    'market': market,
+                    'event': event_data["event_type"],
+                    'condi_name': event_data["condi_name"],
+                    'trade': 'buy',
+                    'quantity': quantity,
+                    'hoga_gubun': '시장가',
+                    'account_no': self.acc_no
+                })
+                self.logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
+                self.my_stock_pocket.add(event_data["code"])
+                self.kw.시장가_신규매수(event_data["code"], quantity)
+                # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
+        if event_data["condi_name"] == "매도":
+            if event_data["event_type"] == "I":
+                sell_stocks_condi(event_data["code"]):
 
     def auto_trading(self):
         """키움증권 HTS에 등록한 조건검색식에서 검출한 종목을 매수하고

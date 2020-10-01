@@ -162,10 +162,12 @@ class Kiwoom(QAxWidget):
             self.notify_callback('OnReceiveRealCondition', dict(data))
 
         except Exception as e:
-            print("_on_receive_real_condition Error")
-            self.logger.error(e)
+#            print("_on_receive_real_condition Error")
+#            self.logger.error(e)
+            self.real_condition_search_result = []
         finally:
             self.real_condition_search_result = []
+
 
     def _on_receive_tr_condition(self, screen_no, code_list, condi_name, condi_index, next):
         """
