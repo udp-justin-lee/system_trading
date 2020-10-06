@@ -86,11 +86,28 @@ class TopTrader(QMainWindow, ui):
 
     def set_account(self):
         self.acc_no = self.kw.get_login_info("ACCNO")
-        self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        #self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        acc_nos = self.acc_no.split(";")  # 계좌 1개를 가정함.
+        self.acc_no = acc_nos[0]
+        self.tt_logger.info("계좌번호:{}".format(self.acc_no))
         self.stock_account = self.account_stat(self.acc_no)
+        self.tt_logger.info("잔고 : {}".format(self.stock_account["계좌정보"]["예수금"]))
 
         # kiwoom default account setting
         self.kw.set_account(self.acc_no)
+        print("현재 계좌 현황입니다...")
+
+        if not bool(self.stock_account):
+            self.tt_logger.error("계좌정보를 제대로 받아오지 못했습니다.")
+            return
+
+        self.my_stocks = {}
+        for data in self.stock_account["종목정보"]:
+            code, stock_name, quantity = data["종목코드"][1:], data["종목명"], int(data["보유수량"])
+            self.tt_logger.info("* 종목: {}, 손익율: {}%, 보유수량: {}, 평가금액: {}원".format(
+                data["종목명"], ("%.2f" % data["손익율"]), int(data["보유수량"]), format(int(data["평가금액"]), ',')
+            ))
+            self.my_stocks[code] = quantity
 
     def start_timer(self):
         if self.timer:
@@ -102,6 +119,7 @@ class TopTrader(QMainWindow, ui):
         self.timer.start(30000) # 30 sec interval
 
     def sell(self):
+        '''
         print("[Timer Interrupt] 30 second")
         self.stock_account = self.account_stat(self.acc_no)
         curr_time = datetime.today()
@@ -141,6 +159,8 @@ class TopTrader(QMainWindow, ui):
                     'hoga_gubun': '시장가',
                     'account_no': self.acc_no
                 })
+        '''
+        return
 
     def account_stat(self, acc_no):
         self.tt_logger.info("계좌평가현황요청")
@@ -171,8 +191,14 @@ class TopTrader(QMainWindow, ui):
             'condi_name': event_data["condi_name"]
         })
 
-        if event_data["event_type"] == "I":
+        self.tt_logger.info("잔고 : {}".format(self.stock_account["계좌정보"]["예수금"]))
+        self.tt_logger.info("code : {}".format(event_data["code"]))
+        self.tt_logger.info("event_type : {}".format(event_data["event_type"]))
+        self.tt_logger.info("condi_name : {}".format(event_data["condi_name"]))
+        self.tt_logger.info("condi_index : {}".format(event_data["condi_index"]))
+        if event_data["event_type"] == "I" and event_data["condi_name"] == "돌파시도 포착 v1.00_r1_m1": #event_data["condi_index"] == "002":
             if self.stock_account["계좌정보"]["예수금"] < 100000:  # 잔고가 10만원 미만이면 매수 안함
+                self.tt_logger.info("잔고가 부족합니다. : {}".format(self.stock_account["계좌정보"]["예수금"]))
                 return
             # curr_price = self.kw.get_curr_price(event_data["code"])
             # quantity = int(100000/curr_price)
@@ -194,7 +220,32 @@ class TopTrader(QMainWindow, ui):
             })
             self.tt_logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
             self.kw.시장가_신규매수(event_data["code"], quantity)
+            if event_data["code"] in self.my_stocks:
+                self.my_stocks[event_data["code"]] += quantity
+            else:
+                self.my_stocks[event_data["code"]] = quantity
             # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
+        elif event_data["event_type"] == "I" and event_data["condi_name"] == "매도":
+            if event_data["code"] not in self.my_stocks:
+                return
+            quantity = self.my_stocks[event_data["code"]]
+            # self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
+            stock_name = self.stock_dict[event_data["code"]]["stock_name"]
+            market = self.stock_dict[event_data["code"]]["market"]
+            self.tt_db.trading_history.insert({
+                'date': curr_time,
+                'code': event_data["code"],
+                'stock_name': stock_name,
+                'market': market,
+                'event': event_data["event_type"],
+                'condi_name': event_data["condi_name"],
+                'trade': 'sell',
+                'quantity': quantity,
+                'hoga_gubun': '시장가',
+                'account_no': self.acc_no
+            })
+            self.tt_logger.info("{}:{}를 {}주 시장가_신규매도합니다.".format(stock_name, event_data["code"], quantity))
+            self.kw.시장가_신규매도(event_data["code"], quantity)
 
     def auto_trading(self):
         """키움증권 HTS에 등록한 조건검색식에서 검출한 종목을 매수하고
@@ -213,7 +264,6 @@ class TopTrader(QMainWindow, ui):
             # 화면번호, 조건식이름, 조건식ID, 실시간조건검색(1)
             self.kw.send_condition(screen_no, condi_name, int(condi_id), 1)
             time.sleep(0.2)
-
 
 # Print Exception Setting
 sys._excepthook = sys.excepthook

@@ -1,1 +1,1 @@
-mongod --dbpath D:\work\TopTraderDB --logpath D:\work\TopTrader_log\db.log
+mongod --dbpath F:\work\TopTraderDB --logpath F:\work\TopTrader_log\db.log
