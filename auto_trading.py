@@ -47,7 +47,7 @@ class TopTrader(QMainWindow, ui):
         self.load_stock_info()
         self.set_account()
         self.auto_trading()
-        print("TopTrader 자동매매 시작합니다...")
+        #print("TopTrader 자동매매 시작합니다...")
         self.timer = None
         self.start_timer()
 
@@ -167,6 +167,7 @@ class TopTrader(QMainWindow, ui):
         return self.kw.계좌평가현황요청("계좌평가현황요청", acc_no, "", "1", "6001")
 
     def search_condi(self, event_data):
+        self.kw.logger.info("search_condi tag 0: {}".format(event_data["condi_name"]))
         """키움모듈의 OnReceiveRealCondition 이벤트 수신되면 호출되는 callback함수
         이벤트 정보는 event_data 변수로 전달된다.
 
@@ -181,6 +182,7 @@ class TopTrader(QMainWindow, ui):
         :return:
         """
         curr_time = datetime.today()
+        '''
         # 실시간 조건검색 이력정보
         self.tt_db.real_condi_search.insert({
             'date': curr_time,
@@ -190,22 +192,31 @@ class TopTrader(QMainWindow, ui):
             'event': event_data["event_type"],
             'condi_name': event_data["condi_name"]
         })
+        '''
 
-        self.tt_logger.info("잔고 : {}".format(self.stock_account["계좌정보"]["예수금"]))
-        self.tt_logger.info("code : {}".format(event_data["code"]))
-        self.tt_logger.info("event_type : {}".format(event_data["event_type"]))
-        self.tt_logger.info("condi_name : {}".format(event_data["condi_name"]))
-        self.tt_logger.info("condi_index : {}".format(event_data["condi_index"]))
-        if event_data["event_type"] == "I" and event_data["condi_name"] == "돌파시도 포착 v1.00_r1_m1": #event_data["condi_index"] == "002":
+        self.kw.logger.info("search_condi tag 1: {}".format(event_data["condi_name"]))
+        #if event_data["event_type"] == "I" and event_data["condi_name"] == "돌파시도 포착 v1.00_r1_m1": #event_data["condi_index"] == "002":
+        if event_data["event_type"] == "I" and event_data["condi_name"] == "단순돌파": #event_data["condi_index"] == "002":
+        #if event_data["event_type"] == "I" and event_data["condi_name"] == "매도": #event_data["condi_index"] == "002":
+            #self.tt_logger.info("잔고 : {}".format(self.stock_account["계좌정보"]["예수금"]))
+            #self.tt_logger.info("code : {}".format(event_data["code"]))
+            #self.tt_logger.info("event_type : {}".format(event_data["event_type"]))
+            #self.tt_logger.info("condi_name : {}".format(event_data["condi_name"]))
+            #self.tt_logger.info("condi_index : {}".format(event_data["condi_index"]))
+            self.kw.logger.info("search_condi tag 2: {}".format(event_data["condi_name"]))
             if self.stock_account["계좌정보"]["예수금"] < 100000:  # 잔고가 10만원 미만이면 매수 안함
-                self.tt_logger.info("잔고가 부족합니다. : {}".format(self.stock_account["계좌정보"]["예수금"]))
+                self.kw.logger.info("잔고가 부족합니다. : {}".format(self.stock_account["계좌정보"]["예수금"]))
                 return
+            self.kw.logger.info("search_condi tag 3: {}".format(event_data["condi_name"]))
             # curr_price = self.kw.get_curr_price(event_data["code"])
             # quantity = int(100000/curr_price)
             quantity = 10
             # self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
-            stock_name = self.stock_dict[event_data["code"]]["stock_name"]
-            market = self.stock_dict[event_data["code"]]["market"]
+            #stock_name = self.stock_dict[event_data["code"]]["stock_name"]
+            self.kw.logger.info("search_condi tag 3.0: {}".format(event_data["condi_name"]))
+            #market = self.stock_dict[event_data["code"]]["market"]
+            self.kw.logger.info("search_condi tag 3.1: {}".format(event_data["condi_name"]))
+            '''
             self.tt_db.trading_history.insert({
                 'date': curr_time,
                 'code': event_data["code"],
@@ -218,20 +229,24 @@ class TopTrader(QMainWindow, ui):
                 'hoga_gubun': '시장가',
                 'account_no': self.acc_no
             })
-            self.tt_logger.info("{}:{}를 {}주 시장가_신규매수합니다.".format(stock_name, event_data["code"], quantity))
+            '''
+            self.kw.logger.info("{}를 {}주 시장가_신규매수합니다.".format(event_data["code"], quantity))
+            self.kw.logger.info("search_condi tag 4: {}".format(event_data["condi_name"]))
             self.kw.시장가_신규매수(event_data["code"], quantity)
             if event_data["code"] in self.my_stocks:
                 self.my_stocks[event_data["code"]] += quantity
             else:
                 self.my_stocks[event_data["code"]] = quantity
+            self.kw.logger.info("search_condi tag 5: {}".format(event_data["condi_name"]))
             # self.kw.send_order("조건식매수", "5000", self.acc_no, 1, event_data["code"], quantity, 0, "03", "")
         elif event_data["event_type"] == "I" and event_data["condi_name"] == "매도":
             if event_data["code"] not in self.my_stocks:
                 return
             quantity = self.my_stocks[event_data["code"]]
             # self.kw.reg_callback("OnReceiveChejanData", ("조건식매수", "5000"), self.account_stat)
-            stock_name = self.stock_dict[event_data["code"]]["stock_name"]
-            market = self.stock_dict[event_data["code"]]["market"]
+            #stock_name = self.stock_dict[event_data["code"]]["stock_name"]
+            #market = self.stock_dict[event_data["code"]]["market"]
+            '''
             self.tt_db.trading_history.insert({
                 'date': curr_time,
                 'code': event_data["code"],
@@ -244,7 +259,8 @@ class TopTrader(QMainWindow, ui):
                 'hoga_gubun': '시장가',
                 'account_no': self.acc_no
             })
-            self.tt_logger.info("{}:{}를 {}주 시장가_신규매도합니다.".format(stock_name, event_data["code"], quantity))
+            '''
+            self.kw.logger.info("{}를 {}주 시장가_신규매도합니다.".format(event_data["code"], quantity))
             self.kw.시장가_신규매도(event_data["code"], quantity)
 
     def auto_trading(self):
