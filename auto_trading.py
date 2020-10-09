@@ -116,11 +116,10 @@ class TopTrader(QMainWindow, ui):
         self.timer = QTimer()
         self.timer.timeout.connect(self.sell)
         # self.timer.setSingleShot(True)
-        self.timer.start(30000) # 30 sec interval
+        self.timer.start(5000) # 5 sec interval
 
     def sell(self):
-        '''
-        print("[Timer Interrupt] 30 second")
+        print("[Timer Interrupt] 5 second")
         self.stock_account = self.account_stat(self.acc_no)
         curr_time = datetime.today()
         print("=" * 50)
@@ -146,6 +145,7 @@ class TopTrader(QMainWindow, ui):
 
                 self.kw.시장가_신규매도(code, quantity)
                 # self.kw.send_order("시장가매도", "5001", self.acc_no, 2, code, quantity, 0, "03", "")
+                '''
                 self.tt_db.trading_history.insert({
                     'date': curr_time,
                     'code': code,
@@ -159,7 +159,7 @@ class TopTrader(QMainWindow, ui):
                     'hoga_gubun': '시장가',
                     'account_no': self.acc_no
                 })
-        '''
+                '''
         return
 
     def account_stat(self, acc_no):
@@ -278,8 +278,9 @@ class TopTrader(QMainWindow, ui):
         # {'추천조건식01': '002', '추천조건식02': '000', '급등/상승_추세조건': '001', 'Envelop횡단': '003', '스켈핑': '004'}
         for condi_name, condi_id in condi_info.items():
             # 화면번호, 조건식이름, 조건식ID, 실시간조건검색(1)
-            self.kw.send_condition(screen_no, condi_name, int(condi_id), 1)
-            time.sleep(0.2)
+            if int(condi_id) == 2:
+                self.kw.send_condition(screen_no, condi_name, int(condi_id), 1)
+                time.sleep(0.2)
 
 # Print Exception Setting
 sys._excepthook = sys.excepthook
