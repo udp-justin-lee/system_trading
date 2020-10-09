@@ -39,7 +39,7 @@ class TopTrader(QMainWindow, ui):
         self.logger = TTlog().logger
         self.mongo = MongoClient()
         self.tt_db = self.mongo.TopTrader
-        self.slack = Slack(config_manager.get_slack_token())
+        #self.slack = Slack(config_manager.get_slack_token())
         self.kw = Kiwoom()
         self.init_trading()
         # self.just_sell_all_stocks()
@@ -89,7 +89,9 @@ class TopTrader(QMainWindow, ui):
 
     def set_account(self):
         self.acc_no = self.kw.get_login_info("ACCNO")
-        self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        #self.acc_no = self.acc_no.strip(";")  # 계좌 1개를 가정함.
+        acc_nos = self.acc_no.split(";")  # 계좌 1개를 가정함.
+        self.acc_no = acc_nos[0]
         self.stock_account = self.get_account_info(self.acc_no)
 
         # kiwoom default account setting

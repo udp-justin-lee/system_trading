@@ -11,7 +11,7 @@ class TTlog():
             format(logger_name)
         formatter = logging.Formatter(format)
         file_max_byte = 1024 * 1024 * 10  # 10MB
-        log_path = "D:/work/TopTrader_log/app_{}.log".format(logger_name)
+        log_path = "F:/work/TopTrader_log/app_{}.log".format(logger_name)
         file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=file_max_byte, backupCount=1000)
         stream_handler = logging.StreamHandler()
         file_handler.setFormatter(formatter)

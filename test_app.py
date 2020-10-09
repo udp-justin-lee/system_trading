@@ -86,7 +86,8 @@ class TopTrader(QMainWindow, ui):
         # 그래프에서 마이너스 폰트 깨지는 문제에 대한 대처
         mpl.rcParams['axes.unicode_minus'] = False
 
-        path = 'c:/Windows/Fonts/D2Coding-Ver1.3-20171129.ttc'
+        #path = 'c:/Windows/Fonts/D2Coding-Ver1.3-20171129.ttc'
+        path = 'c:/Windows/Fonts/gulim.ttc'
         font_name = fm.FontProperties(fname=path).get_name()
         plt.rcParams["font.family"] = font_name
 
